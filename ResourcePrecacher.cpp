@@ -7,14 +7,15 @@ ResourcePrecacher g_ResourcePrecacher;
 PLUGIN_EXPOSE(ResourcePrecacher, g_ResourcePrecacher);
 
 IVEngineServer2* engine = nullptr;
+ResourcePrecacherApi* g_pRSApi = nullptr;
+IResourcePrecacher* g_pRSCore = nullptr;
 
 int m_buildGameSessionManifestHookID;
-
 std::vector<std::string> g_mapPrecache;
 
-SH_DECL_HOOK1_void(IGameSystem, BuildGameSessionManifest, SH_NOATTRIB, false, const EventBuildGameSessionManifest_t *);
+SH_DECL_HOOK1_void(IGameSystem, BuildGameSessionManifest, SH_NOATTRIB, false, const EventBuildGameSessionManifest_t&);
 
-void Hook_BuildGameSessionManifest(const EventBuildGameSessionManifest_t* msg);
+void Hook_BuildGameSessionManifest(const EventBuildGameSessionManifest_t& msg);
 
 bool LoadConfig()
 {
@@ -34,6 +35,11 @@ bool LoadConfig()
 	return true;
 }
 
+void ResourcePrecacherApi::AddPrecache(const char* szResource)
+{
+	g_mapPrecache.push_back(szResource);
+}
+
 bool ResourcePrecacher::Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen, bool late)
 {
 	PLUGIN_SAVEVARS();
@@ -45,6 +51,7 @@ bool ResourcePrecacher::Load(PluginId id, ISmmAPI *ismm, char *error, size_t max
 		Warning("Failed to load config\n");
 		return false;
 	}
+
 	m_buildGameSessionManifestHookID = SH_ADD_DVPHOOK(
 		IGameSystem, 
 		BuildGameSessionManifest, 
@@ -53,7 +60,23 @@ bool ResourcePrecacher::Load(PluginId id, ISmmAPI *ismm, char *error, size_t max
 		true
 	);
 	g_SMAPI->AddListener( this, this );
+
+	g_pRSApi = new ResourcePrecacherApi();
+	g_pRSCore = g_pRSApi;
+
 	return true;
+}
+
+void* ResourcePrecacher::OnMetamodQuery(const char* iface, int* ret)
+{
+	if (!strcmp(iface, RESOURCE_PRECACHER_INTERFACE))
+	{
+		*ret = META_IFACE_OK;
+		return g_pRSCore;
+	}
+
+	*ret = META_IFACE_FAILED;
+	return nullptr;
 }
 
 bool ResourcePrecacher::Unload(char *error, size_t maxlen)
@@ -62,9 +85,9 @@ bool ResourcePrecacher::Unload(char *error, size_t maxlen)
 	return true;
 }
 
-void Hook_BuildGameSessionManifest(const EventBuildGameSessionManifest_t* msg)
+void Hook_BuildGameSessionManifest(const EventBuildGameSessionManifest_t& msg)
 {
-    IEntityResourceManifest* pResourceManifest = msg->m_pResourceManifest;
+    IEntityResourceManifest* pResourceManifest = msg.m_pResourceManifest;
     for (auto& it : g_mapPrecache)
     {
         pResourceManifest->AddResource(it.c_str());
@@ -78,7 +101,7 @@ const char *ResourcePrecacher::GetLicense()
 
 const char *ResourcePrecacher::GetVersion()
 {
-	return "1.0";
+	return "1.0.1";
 }
 
 const char *ResourcePrecacher::GetDate()

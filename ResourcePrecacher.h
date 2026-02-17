@@ -8,7 +8,8 @@
 #include <ctime>
 #include "igamesystemfactory.h"
 #include "sourcehook.h"
-#include "sdk/module.h"
+#include "include/resource_precacher.h"
+#include "module.h"
 
 class IEntityResourceManifest
 {
@@ -25,12 +26,12 @@ public:
 	virtual void unk_10() = 0;
 };
 
-
 class ResourcePrecacher : public ISmmPlugin, public IMetamodListener
 {
 public:
 	bool Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen, bool late);
 	bool Unload(char *error, size_t maxlen);
+	void* OnMetamodQuery(const char* iface, int* ret);
 public:
 	const char *GetAuthor();
 	const char *GetName();
@@ -40,6 +41,12 @@ public:
 	const char *GetVersion();
 	const char *GetDate();
 	const char *GetLogTag();
+};
+
+class ResourcePrecacherApi : public IResourcePrecacher
+{
+public:
+	void AddPrecache(const char* szResource);
 };
 
 extern ResourcePrecacher g_ResourcePrecacher;
